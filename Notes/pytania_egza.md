@@ -271,7 +271,7 @@ Teraz omówmy jak złagodzić efekt nad dopasowania:
 
 Zacznijmy może od ogólnego pojęcia **uczenia zespołowego**. Co ciekawe okazuję się, że połączenie wielu `weak-learnerów` w jeden duży klasyfikator daje nam tak zwanego `stron-learnera`. Istotnie tutaj prawo wielkich liczb daje o sobie poznać. Ale istotne jest to, że zamiast bazować na głosie jednego klasyfikatora, robimy ich kilka i każdy z nich głosuje, jak klasyfikujemy próbkę. Następnie ich przewidzenia sumujemy i patrzymy sobie jaki jest wynik grupy. Są różne metody sprawdzania jaki jest finalny głos grupy:
 - "miękkie": czyli takie, że modele generujace prawdopodobienstwo, ze dana klasa bedzie. My sobie uśredniamy te prawdopodobienstwa(mozna wprawadzic wagi), dla każdej klasy i patrzymy, która jest bardziej prawdopodobna(wtedy np glosy o wiekszej pewnosci maja wiekszą wagę itd)
-- "twarde": patrzymy sobie, która klasyfikacja pojaiwa się najczęściej, czyli np model 1 przewidzial klase A, 2 klase A, 3 klase B, oczywiscie moze to byc z pewnymi prawdopodobienstwami, ale liczy sie finalna klasa i na tej podstawie patrzymy, która klasa jest w większości głosowania i sobie ją wybieramy jako wynik.
+- "twarde": patrzymy sobie, która klasyfikacja pojaiwa się najczęściej, czyli np model 1 przewidzial klase A, 2 klase A, 3 klase B, oczywiscie moze to byc z pewnymi prawdopodobienstwami, ale liczy sie finalna klasa i na tej podstawie patrzymy, która klasa jest w większości głosowania i sobie ją wybieramy jako wynik. Tutaj tez mozemy dodac wagi do koncowego wyniku
 
 **Boosting** zaś to metoda, której zadaniem jest skupianie uczenia na trudnych punktach zbioru danych. 
 
@@ -307,7 +307,7 @@ W ten sposób klasyfikatory poprawiają się nazwajem. Kładąc nacisk mneijszy 
 
 ### Explain TF-IDF representation of documents. What are the metrics which are most commonly used to search for k-NN documents.
 
-A więc jak TF znaczy **term frequency**, czyli sama częstość występowania słów w danych dokumencie, tak IDF oznacza **inverted doc frequency**, czyli jest to metryka pokazująca jak żadkie jest dane słowo globalnie, co oznacza, że jeżeli mamy jakieś słowo, które występuje często tylko w określonej grupie dokumentów, to ono będzie miało przypisaną wyższą wagę
+A więc jak TF znaczy **term frequency**, czyli sama częstość występowania słów w danych dokumencie, tak IDF oznacza **inverted doc frequency**, czyli jest to przekształcenie pokazujące jak rzadkie jest dane słowo globalnie, co oznacza, że jeżeli mamy jakieś słowo, które występuje często tylko w określonej grupie dokumentów, to ono będzie miało przypisaną wyższą wagę
 
 $IDF = log(\frac{num-docs}{1+num-docs-using-word})$
 
@@ -379,7 +379,7 @@ Tutaj wzorki:
 - **Update Cluster Means (M-Step)**: $\mu_k = \frac{\sum_{i=1}^{N} \gamma_{ik} \cdot x_i}{\sum_{i=1}^{N} \gamma_{ik}}$
 - **Update Covariance Matrices (M-Step)**: $\Sigma_k = \frac{\sum_{i=1}^{N} \gamma_{ik} \cdot (x_i - \mu_k)(x_i - \mu_k)^\top}{\sum_{i=1}^{N} \gamma_{ik}}$
 
-W zasadzie nie wiem co tutaj napisać. Działa tak samo jak kmeans ale inczaej zmienia parametry
+W zasadzie nie wiem co tutaj napisać. Działa tak samo jak kmeans ale inczaej zmienia parametry. Ale co znaczy ze optymalizuje za pomoca MLE, tak jak w przypadku regresji logistycznej mielismy maksymalizowanie tego, aby dany ounkt dalo się jak najpewniej sklasyfikowac, tak tu jest podobnie, chcemy odpowiedzialnośc za punkt była brana z większą pewnościa przez jeden klaster.
 
 ### Explain what is the model for "bag-of-words" for clustering documents.
 To jest chyba kolejna abstrakcyjna metoda, która bazuje na tym, że zamiast robić wektory, my zbieramy wszystkie słówka z artykułu i grupujemy te słowa według tego do jakiego tematu należą, że artykuł staję się pewnego rodzaju probabilostyczną mieszanką, czy dany dokument należy do jednego tematy czy też drugiego. Dostaniemy więc odpowiednie podziały procentowe, jak bardzo dokumenty określone mówią o odpowiednich tematach
@@ -425,7 +425,7 @@ W przypadku dzielenia cisniemy rekurencyjnie a w przypadku łączenia, trzeba ja
 PCA, służy do redukcji wymiarowości. Załóżmy, że mamy przykładowe dane:
 ![pca](./images/pca.png)
 
-PCA na początku stara się wytyczyć prostą, która dopasuję się do jak największej wariancji danych, innymi słowami mozna też powiedzieć, że zminimalizuje błąd średnio kwadratowy między wszystkimi punktami. Co istotne, dostajemy wtedy naszą pierwszą oś następnie do tej znalezionej osi szukamy ortogonalnej kolejnej i potem ortogonalną do tych już znalezionych. Tylko pytanie jak te osie z najniższą wariancją znaleźć? Oto kilka możliwości
+PCA na początku stara się wytyczyć prostą, która dopasuję się do jak największej wariancji danych, innymi słowami mozna też powiedzieć, że zminimalizuje błąd średnio kwadratowy między wszystkimi punktami. Co istotne, dostajemy wtedy naszą pierwszą oś następnie do tej znalezionej osi szukamy ortogonalnej kolejnej i potem ortogonalną do tych już znalezionych, zachowując największą wariancję(to lepiej widać na 3d, jesli chodzi o wybór ortogonalnych osi, w która stronę one będą skierowane). Tylko pytanie jak te osie z najniższą wariancją znaleźć? Oto kilka możliwości
 1) Można starać się wyliczyć każdą wariancję z osobna, ale to kosztowne, wtedy bierzemy sobie te wymiary z największą wariancją i po sprawie
 2) Zrobić SVD, które od razu wylicza nam wekotry własne macierzy danych, więc dostajemy osie, wobec których idą największe wariancję danych
 
@@ -577,7 +577,7 @@ Istotnie R^2 mierzy proporcje wariancji danej zmiennej y, ktora jest opisana za 
 
 ### Could you explain hypothesis testing with randomisation
 Mamy przykład najlepiej na tym: dwie grupy chcemy spradzic czy dzialanie leku dziala, jednym dajemy placebo, drugim dajemy lek. Okazuje sie ze roznica cisnien srednia miedzy nimi to 10. Pytanie czy lek wplywa czy tez nie? Aby to sprawdzic robimy tak:
-1) Zakładamy null hipoteze, że lek nie wpływa na te osoby, oraz hipoteze alterantywna, ze wpływa. Przy założeniu, że hipoteza null jest prawdziwa, nawet przy zmieszaniu grup nie powinno byc roznicy dla nas, wtedy srednia i tak różnica sredniej miedzy dwoma grupami i tak powinna wyjsc >10, bo przecierz bez znaczenia, ale jesli sie okaze ze nie i to nie jest az tak prawdopodobne, ze srednia zawsze bedzie wieksza od 10 to wtedy mozemy z prawd 95% stweirdzic, ze doprawdy lek pomaga
+1) Zakładamy null hipoteze, że lek nie wpływa na te osoby, oraz hipoteze alterantywna, ze wpływa. Przy założeniu, że hipoteza null jest prawdziwa, nawet przy zmieszaniu grup nie powinno byc roznicy dla nas, wtedy i tak różnica sredniej miedzy dwoma grupami i tak powinna wyjsc >10, bo przeciez bez znaczenia, ale jesli sie okaze ze nie i to nie jest az tak prawdopodobne, ze srednia zawsze bedzie wieksza od 10 to wtedy mozemy z prawd 95% stweirdzic, ze doprawdy lek pomaga
 2) Wiec mieszamy grupki ze soba nazwzajem i sprawdzamy tą naszą testową statystykę w naszym przyapdku roznica sredniej
 3) Nastepnie układamy je wszystkie w rozklad pradopodobienstwa i sprawdzamy jak prawdopodobne jest wylosowanie czegos >= 10. 
 4) Jezeli sie okaze, ze prawd wylosowanie czegos takiego jest mniejsze niz 5% to wtedy odrzucamy hipoteze null, mowiaca, ze miedzy grupamk nie ma roznicy (bo po przemieszaniu losowym okazalo sie, ze ta srednia jest nieprawdopodobna aby wyszla >= 10)
