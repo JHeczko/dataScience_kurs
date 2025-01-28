@@ -42,6 +42,7 @@ Jest to taka miara statystyczna, na którą 'outlinery' nie mają dużego wpływ
 Do odpornych statystyk należą:
 - mediana
 - IQR
+
 Do nieodpornych należą:
 - średnia
 - odchylenie standardowe
@@ -51,7 +52,7 @@ Do nieodpornych należą:
 
 ![box_plot](./images/box_plot.png)
 
-Wykres pudełkowy nam w jakim zakresie znajduje się 50% danych bo od kwartyle 1/4 do kwartyla 3/4. Te patyczki(whiskers) sięgają nam w taki sposób $Q_1/Q_3 -/+ $1\frac{1}{2}$ IQR$. To co widzimy to rozkład zbliżony do normalnego, w którym mamy jednego outlinera zaznaczonego kropką, jeżeli mielibyśmy rozkład skośny to wtedy, mielibyśmy przesuniętą miedianę w pudełku, oraz whiskersy byłīby troszkę, krótsze, ale to jest wynikowa przesunięcia tej mediany tak naprawdę
+Wykres pudełkowy nam w jakim zakresie znajduje się 50% danych bo od kwartyle 1/4 do kwartyla 3/4. Te patyczki(whiskers) sięgają nam w taki sposób $Q_1/Q_3$ -/+ $1\frac{1}{2} IQR$. To co widzimy to rozkład zbliżony do normalnego, w którym mamy jednego outlinera zaznaczonego kropką, jeżeli mielibyśmy rozkład skośny to wtedy, mielibyśmy przesuniętą miedianę w pudełku, oraz whiskersy byłīby troszkę, krótsze, ale to jest wynikowa przesunięcia tej mediany tak naprawdę
 
 ## Regression
 
@@ -96,7 +97,7 @@ Zacznijmy po kolei:
      * *Norma gradientu*: Nie chwytaj, ale chodiz coś z tym, że jesli nroma gradientu wyliczonego jest wystarczajaco mala to wtedy się zatrzymujemy, ale to jest analogia to dałego kroku
      * *Walidacyjny warunek stopu*: W kerasie callback EarlyStopping tak zwany, czyli zatrzymanie przed wczesne, jeżeli np następuje już przetrenowanie modelu lub inny warunek
 
-W zasadzie to jest spadek gradientu w sensie takiego, abstrakcyjnego sensu. Teraz pytanie czym jest learning rate, to jest ta lambda która skaluje krok gradientu, czyli jak duży on będzie, w SGD, ten krok jest skalowany w stały sposób bez zmian w czasie. Ale istnieją odmiany GD, które mają ten krok zmienny(nie koniecznie mówie o lambda). Spójrzmy na kilka z nich:
+W zasadzie to jest spadek gradientu taki najprostrszy. Teraz pytanie czym jest learning rate, to jest ta lambda która skaluje krok gradientu, czyli jak duży on będzie, w SGD, ten krok jest skalowany w stały sposób bez zmian w czasie. Ale istnieją odmiany GD, które mają ten krok zmienny(nie koniecznie mówie o lambda). Spójrzmy na kilka z nich:
   - **SGD with momentum**: Tutaj mamy jeszcze stochastyczny spadek gradientu z wektorem 'momentu pędu'. Spójrzmy jak wygląda wzór. Normalnie mieliśmy $w_{t+1} = w_t - \lambda g(w_t)$. Ale tutaj jest pewna modyfikacja, dodajemy ten wektor pędu $w_{t+1} = w_t + v_{t+1}$ gdzie $v_{t+1} = p v_t - \lambda g(w_t)$. W praktyce mówi nam to tyle, że jeżeli mam duży skok, to rozpędzemiy się bardzo i w następnej iteracji również bedziemy rozpędzeni, ale jeśli skok jest mały, to mało akcelerujemy. Następnie jeżeli w którymś momencie przestrzelimy minimum, będziemy musieli gwałtowanie zachamować i ten wektor się skasuje jak wpadniemy w bardziej wyboiste minimum, a będzie fajnie wychodził z takiego płytkiego(czesto minimum pułapka). Bo wtedy będziemy mieli znak ujemny jak przestrzelimy lekko minimum
 
 W kązdym razie samo dostosowanie learning rate mozna zrobic roznymi metodami, grid search, random search, bayesan search itd. metoda łokcia, czy jakieś inne dobory.
@@ -114,6 +115,7 @@ CV, służy do lepszego sprawdzenia czy nasze hiperparametry modelu są dobrze d
 
 
 ![errors](./images/errors.jpg)
+
 `Generalization Errot` byłby gdzieś w okolicach test error, a walidacyjny błąd pewnie poniżej tego generalizycyjnego albo bardzo zblizony
 
 ### Explain what are the sources of errors on the prediction: noise, bias, variance. Draw simple illustration explaining it. What does it mean bias-variance trade-off.
@@ -145,7 +147,7 @@ Tutaj obrazek dla lasso i ridge jak zachowują się wagi:
 ### Explain procedure for selecting features for regression with the greedy algorithm.
 
 
-Normalnie szukalibiśmy kombinacji która daje najlepsze wyniki, ale to jest praktycznie niemożliwe do wykanania, bo mamy czas wykładniczy szukania tego, za to można użyć algorytmu zachłannego, który na początku bierze jakiś feature, który daje optymalne wyniki, jakikolwiek w zasadzie i nastepnie patrzy, który kolejny feature daje lepsze wyniki, to prowadzi to zmniejszania błedu w każdej iteracji ale nie w najbardziej optymalny sposób, podobno w pewnym momencie te obydwa rozwiązania zbiegają do tego samego, ale wiadomo, greedy nie zawsze da najbardziej optymalne rozwiązanie
+Normalnie szukalibiśmy kombinacji która daje najlepsze wyniki, ale to jest praktycznie niemożliwe do wykanania, bo mamy czas wykładniczy szukania tego, za to można użyć algorytmu zachłannego, który na początku bierze jakiś feature, który daje optymalne wyniki, jakikolwiek w zasadzie i nastepnie patrzy, który kolejny feature daje najlepsze wyniki, to prowadzi to zmniejszania błedu w każdej iteracji, podobno w pewnym momencie te obydwa rozwiązania zbiegają do tego samego, ale wiadomo, greedy nie zawsze da najbardziej optymalne rozwiązanie. Istotnie tutaj będzie O(N^2), zamaist wykladniczego O(2^N), bo tutaj nie testujemy kazdej kombinacji feature :D
 
 ### What does it mean "non-parametric regression". Explain concept of: (1-NN) regression, (k-NN) regression, weighted regression, kernel regression.
 
@@ -267,24 +269,24 @@ Teraz omówmy jak złagodzić efekt nad dopasowania:
 
 ### Idea of ensemble classifiers and boosting. Could you explain the concept of weighted weak classifiers and weighted data. Could you write down formula for final model predictions.
 
-Zacznijmy może od ogólnego pojęcia **uczenia zespołowego**. Co ciekawe okazuję się, że połączenie wielu `weak-learnerów` w jeden duży klasyfikator daje nam tak zwanego `stron-learnera`. Istotnie tutaj prawo wielkich liczb daje o sobie poznać. Ale istotne jest to, że zamiast bazować na głosie jednego klasyfikatora, robimy ich kilka i każdy z nich głosuje, jak klasyfikujemy próbkę. Następnie ich przewidzenia sumujemy i patrzymy sobie jaki jest wynik grupy. 
+Zacznijmy może od ogólnego pojęcia **uczenia zespołowego**. Co ciekawe okazuję się, że połączenie wielu `weak-learnerów` w jeden duży klasyfikator daje nam tak zwanego `stron-learnera`. Istotnie tutaj prawo wielkich liczb daje o sobie poznać. Ale istotne jest to, że zamiast bazować na głosie jednego klasyfikatora, robimy ich kilka i każdy z nich głosuje, jak klasyfikujemy próbkę. Następnie ich przewidzenia sumujemy i patrzymy sobie jaki jest wynik grupy. Są różne metody sprawdzania jaki jest finalny głos grupy:
+- "miękkie": czyli takie, że modele generujace prawdopodobienstwo, ze dana klasa bedzie. My sobie uśredniamy te prawdopodobienstwa(mozna wprawadzic wagi), dla każdej klasy i patrzymy, która jest bardziej prawdopodobna(wtedy np glosy o wiekszej pewnosci maja wiekszą wagę itd)
+- "twarde": patrzymy sobie, która klasyfikacja pojaiwa się najczęściej, czyli np model 1 przewidzial klase A, 2 klase A, 3 klase B, oczywiscie moze to byc z pewnymi prawdopodobienstwami, ale liczy sie finalna klasa i na tej podstawie patrzymy, która klasa jest w większości głosowania i sobie ją wybieramy jako wynik.
 
 **Boosting** zaś to metoda, której zadaniem jest skupianie uczenia na trudnych punktach zbioru danych. 
 
-Jeśli chodzi o koncept ważenia słabych klasyfikatorów oraz danych. To tak jak wspomnianie jest w **Boosting**. W przypadku trudnych punktów w zbiorze, wagi tych punktów będą większe od prostszych punktów w tym zbiorze, czyli takich, które klasyfikowane są dobrze. Z klasyfikatorami jest podobnie, jeśli jakiś klasyfikator zwraca dobre wyniki, jego waga będzie pozytywnie wysoka, jeśli jest czegoś bardzo niepewny jego waga będzie bliska 0, a jeśli będzie bardzo pewny niepoprawncyh wyników jego waga będzie schodzić ponieżej 0. 
+Jeśli chodzi o koncept ważenia danych, to jedną z metod wykonywania tego jest boosting. W przypadku trudnych punktów w zbiorze, wagi tych punktów będą większe od prostszych punktów w tym zbiorze, czyli takich, które klasyfikowane są dobrze. Z klasyfikatorami jest podobnie, jeśli jakiś klasyfikator zwraca dobre wyniki, jego waga będzie pozytywnie wysoka, jeśli jest czegoś bardzo niepewny jego waga będzie bliska 0, a jeśli będzie bardzo pewny niepoprawnych wyników jego waga będzie schodzić ponieżej 0. 
 
 Tutaj formułka na wzór wyniku głosowania z wagami
 $\hat{y} = sign (\Sigma^T_{t=1} \hat{w_{t}} f_t (x))$
 
 ### AdaBoost algorithm, formulas, learning process.
-Jak na górze było pytanie o abstrakcje tak teraz będzie pytanie o konkretny algorytm. Schemat algorytmu jest taki
-
 1) Zainicjalizuj wszystkie wagi punktow tak samo czyli $\frac{1}{N}$
 2) Dla każdego klasyfikatora
    1) Naucz go na ważonych danych i sprawdź jego błąd
    2) Wyznacz jego współczynnik zaufania
    3) Popraw wagi punktów i je znormalizuj
-3) Sprawdź zachowanie całego klasyfikatora $\hat{y} = sign (\Sigma^T_{t=1} \hat{w_{t}} f_t (x))$
+3) Sprawdź zachowanie całego klasyfikatora $\hat{y}(x) = argmax_k \Sigma_{j=1, \hat{y}(x) = k}^N \alpha_j$
 
 Teraz trochę o wzorach
 - Initialize Sample Weights: $w_i^{(1)} = \frac{1}{N}, \quad i = 1, 2, \dots, N$
@@ -297,9 +299,9 @@ Teraz trochę o wzorach
 
 - Normalize Sample Weights: $w_i^{(t+1)} = \frac{w_i^{(t+1)}}{\sum_{i=1}^{N} w_i^{(t+1)}}$
 
-- Final Strong Classifier: $\hat{y} = sign (\Sigma^T_{t=1} \hat{\alpha_{t}} f_t (x))$
+- Final Strong Classifier: $\hat{y}(x) = argmax_k \Sigma_{j=1, \hat{y}(x) = k}^N \alpha_j$
 
-W ten sposób klasyfikatory poprawiają się nazwajem. Kładąc nacisk mneijszy bądź większy.
+W ten sposób klasyfikatory poprawiają się nazwajem. Kładąc nacisk mneijszy bądź większy. Istotnie AdaBoost jest alogrytmem głosujący większościowo("hard"), a więc patrząc sobie na konkretne wagi sumujemy dla danego przewidzenia danej klasy
 
 ## Clustering&Retrieval
 
@@ -307,7 +309,7 @@ W ten sposób klasyfikatory poprawiają się nazwajem. Kładąc nacisk mneijszy 
 
 A więc jak TF znaczy **term frequency**, czyli sama częstość występowania słów w danych dokumencie, tak IDF oznacza **inverted doc frequency**, czyli jest to metryka pokazująca jak żadkie jest dane słowo globalnie, co oznacza, że jeżeli mamy jakieś słowo, które występuje często tylko w określonej grupie dokumentów, to ono będzie miało przypisaną wyższą wagę
 
-$IDF = log(\frac{#docs}{1+#docs-using-word})$
+$IDF = log(\frac{num-docs}{1+num-docs-using-word})$
 
 $TFIDF = TF * IDF$
 
@@ -522,7 +524,6 @@ Uczenie sie tego jest takie, ze losowo bierzemy nasze macierze wynikowe faktoryz
 ![fact_error](./images/fact_learn2.png)
 
 ### How we can measure effectiveness of the recomender system.
-Mozna mierzyć normalnie metrykami takimi jak accuracy oraz recall gdzie accuracy to moze byc:
 - **Offline metrics**(takie, które są kalkulowane na podstawie danych historycznych z uzyciem zbiorów testowych, gdzie sprawdzamy czy dobrze polecamy hipotetycznemu użytkownikowi rzeczy)
   - accuracy: $\frac{ilość\_poleconych\_poprawnie}{ilość\_poleconych}$
   - recall: $\frac{liczba\_poleconych\_filmow}{liczba\_wszystkich\_możliwych\_filmów\_do\_polecenia}$
