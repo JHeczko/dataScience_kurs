@@ -16,3 +16,11 @@ More advanced data exploration on dataset from NASA, that monitores potencialy d
 
 ### Advanced
 
+## Clusterization
+### Primer
+### Advanced
+
+## Recommending system
+Recommending system based on steam games and users, tried 2 methods:
+* product similarity: based on the first data set with gamss description and categories
+* co-occurance matrix: based on user data set i have created a co-occurance matrix
