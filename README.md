@@ -1,5 +1,7 @@
 # Data Science - University Course
 
+> In 'Other' there is other notebooks from outside the course, but from another data science course, focused on really similar things. Sometimes i include data sometimes not, cuz of the size of the data
+
 ## Data exploration
 ### Primer
 Basicly simple data exploration on flat data set
