@@ -1,5 +1,7 @@
 from overrides import overrides
 
+import regex as re
+
 from .base import Tokenizer
 
 import tiktoken
@@ -10,10 +12,24 @@ class GPT4Tokenizer(Tokenizer):
         super().__init__()
 
         gpt4_tokenizer = tiktoken.get_encoding("cl100k_base")
+
+        self.gpt2_regex = re.compile(r"""'(?i:[sdmt]|ll|ve|re)|[^\r\n\p{L}\p{N}]?+\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]++[\r\n]*|\s*[\r\n]|\s+(?!\S)|\s+""")
+
         mergable_ranks = gpt4_tokenizer._mergeable_ranks
 
         self.encode_dict = self.__recover_merges(mergable_ranks)
-        print(self.encode_dict)
+        self.decode_dict = {v:k for k,v in mergable_ranks.items()}
+        byte_shuffle = {i: mergable_ranks[bytes([i])] for i in range(256)}
+
+        self.special_tokens = {
+            '<|endoftext|>': 100257,
+            '<|fim_prefix|>': 100258,
+            '<|fim_middle|>': 100259,
+            '<|fim_suffix|>': 100260,
+            '<|endofprompt|>': 100276
+        }
+
+        print(byte_shuffle)
 
 
     def __bpe(self, mergeable_ranks, token, max_rank):
@@ -51,6 +67,10 @@ class GPT4Tokenizer(Tokenizer):
             merges[(ix0, ix1)] = rank
 
         return merges
+
+    def register_special_tokens(self, special_tokens):
+        for v,k in special_tokens.items():
+            self.special_tokens[v] = k
 
     @overrides
     def train(self, text:str, vocab_size:int, verbose=False):

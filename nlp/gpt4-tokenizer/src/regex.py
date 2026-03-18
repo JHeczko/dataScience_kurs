@@ -120,8 +120,7 @@ class RegexTokenizer(Tokenizer):
 
         return text_tokens
 
-    @overrides
-    def encode(self, text):
+    def __encode_ordinary(self, text):
         text_splitted = re.findall(self.regex, text)
         tokens_utf8 = [list(text_chunk.encode("utf-8")) for text_chunk in text_splitted]
 
@@ -132,6 +131,39 @@ class RegexTokenizer(Tokenizer):
             tokenized_string.extend(tokenized_chunk)
 
         return tokenized_string
+
+    @overrides
+    def encode(self, text, allow_special='none_raise'):
+        special = None
+        if allow_special == "all":
+            special = self.special_tokens_encode
+        elif allow_special == "none":
+            special = {}
+        elif allow_special == "none_raise":
+            special = {}
+            assert all(token not in text for token in self.special_tokens_encode)
+        elif isinstance(allow_special, set):
+            special = {k: v for k, v in self.special_tokens_encode.items() if k in allow_special}
+        else:
+            raise ValueError(f"allowed_special={allow_special} not understood")
+        if not special:
+            # shortcut: if no special tokens, just use the ordinary encoding
+            return self.__encode_ordinary(text)
+
+        special_pattern = "(" + "|".join(re.escape(k) for k in special) + ")"
+        special_chunks = re.split(special_pattern, text)
+        # now all the special characters are separated from the rest of the text
+        # all chunks of text are encoded separately, then results are joined
+        ids = []
+        for part in special_chunks:
+            if part in special:
+                # this is a special token, encode it separately as a special case
+                ids.append(special[part])
+            else:
+                # this is an ordinary sequence, encode it normally
+                ids.extend(self.__encode_ordinary(part))
+        return ids
+
 
 
     # TODO - cale to
