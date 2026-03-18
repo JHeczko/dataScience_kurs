@@ -2,34 +2,56 @@ from overrides import overrides
 
 import regex as re
 
-from .base import Tokenizer
+from .regex import RegexTokenizer
 
 import tiktoken
 
-class GPT4Tokenizer(Tokenizer):
+class GPT4Tokenizer(RegexTokenizer):
 
     def __init__(self):
+        # (int, int) -> int
+        # basicly how to merge a specific pair into token
+        # self.encode_dict = {}
+        # ---
+        # int -> bytes
+        # token to the corresponding bytes
+        # self.decode_dict = {}
+        # ---
+        # str -> int
+        # special_token -> token
+        # self.special_tokens_encode = {}
+        # ---
+        # int -> str
+        # token -> special_token
+        # self.special_tokens_decode = {}
         super().__init__()
 
         gpt4_tokenizer = tiktoken.get_encoding("cl100k_base")
 
-        self.gpt2_regex = re.compile(r"""'(?i:[sdmt]|ll|ve|re)|[^\r\n\p{L}\p{N}]?+\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]++[\r\n]*|\s*[\r\n]|\s+(?!\S)|\s+""")
-
         mergable_ranks = gpt4_tokenizer._mergeable_ranks
 
         self.encode_dict = self.__recover_merges(mergable_ranks)
-        self.decode_dict = {v:k for k,v in mergable_ranks.items()}
-        byte_shuffle = {i: mergable_ranks[bytes([i])] for i in range(256)}
 
-        self.special_tokens = {
+        decode_dict = {token: bytes([token]) for token in range(256)}
+
+        for (token1, token2), token_out in self.encode_dict.items():
+            decode_dict[token_out] = decode_dict[token1] + decode_dict[token2]
+
+        self.decode_dict = decode_dict
+
+        # normal byte -> permuted byte
+        self.byte_shuffle = {i: mergable_ranks[bytes([i])] for i in range(256)}
+        # permuted byte -> normal byte
+        self.inverted_byte_shuffle = {k: v for v, k in self.byte_shuffle.items()}
+
+        self.register_special_token({
             '<|endoftext|>': 100257,
             '<|fim_prefix|>': 100258,
             '<|fim_middle|>': 100259,
             '<|fim_suffix|>': 100260,
             '<|endofprompt|>': 100276
-        }
+        })
 
-        print(byte_shuffle)
 
 
     def __bpe(self, mergeable_ranks, token, max_rank):
@@ -68,9 +90,6 @@ class GPT4Tokenizer(Tokenizer):
 
         return merges
 
-    def register_special_tokens(self, special_tokens):
-        for v,k in special_tokens.items():
-            self.special_tokens[v] = k
 
     @overrides
     def train(self, text:str, vocab_size:int, verbose=False):
@@ -78,9 +97,15 @@ class GPT4Tokenizer(Tokenizer):
         raise NotImplementedError()
 
     @overrides
-    def encode(self, text):
-        pass
+    def _encode_chunk(self, text_tokens):
+        text_tokens_permutated = bytes(self.byte_shuffle[token] for token in text_tokens)
+        tokens = super()._encode_chunk(text_tokens_permutated)
+        return tokens
 
     @overrides
     def decode(self, tokens):
-        pass
+        text_bytes = b"".join(self.decode_dict[token] for token in tokens)
+        text_bytes = bytes(self.inverted_byte_shuffle[byte] for byte in text_bytes)
+
+        text = text_bytes.decode("utf-8", errors="replace")
+        return text

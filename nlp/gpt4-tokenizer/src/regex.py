@@ -103,7 +103,7 @@ class RegexTokenizer(Tokenizer):
 
 
 
-    def __encode_chunk(self, text_tokens):
+    def _encode_chunk(self, text_tokens):
         while len(text_tokens) >= 2:
             counter = self.__count_pairs(text_tokens)
 
@@ -120,14 +120,14 @@ class RegexTokenizer(Tokenizer):
 
         return text_tokens
 
-    def __encode_ordinary(self, text):
+    def _encode_ordinary(self, text):
         text_splitted = re.findall(self.regex, text)
         tokens_utf8 = [list(text_chunk.encode("utf-8")) for text_chunk in text_splitted]
 
         tokenized_string = []
 
         for chunk in tokens_utf8:
-            tokenized_chunk = self.__encode_chunk(chunk)
+            tokenized_chunk = self._encode_chunk(chunk)
             tokenized_string.extend(tokenized_chunk)
 
         return tokenized_string
@@ -148,7 +148,7 @@ class RegexTokenizer(Tokenizer):
             raise ValueError(f"allowed_special={allow_special} not understood")
         if not special:
             # shortcut: if no special tokens, just use the ordinary encoding
-            return self.__encode_ordinary(text)
+            return self._encode_ordinary(text)
 
         special_pattern = "(" + "|".join(re.escape(k) for k in special) + ")"
         special_chunks = re.split(special_pattern, text)
@@ -157,16 +157,15 @@ class RegexTokenizer(Tokenizer):
         ids = []
         for part in special_chunks:
             if part in special:
-                # this is a special token, encode it separately as a special case
+                # pert with sepcial token
                 ids.append(special[part])
             else:
-                # this is an ordinary sequence, encode it normally
-                ids.extend(self.__encode_ordinary(part))
+                # part without special token, normal text to encode normally
+                ids.extend(self._encode_ordinary(part))
         return ids
 
 
 
-    # TODO - cale to
     @overrides
     def decode(self, tokens):
 
@@ -176,7 +175,7 @@ class RegexTokenizer(Tokenizer):
             if token in self.decode_dict:
                 text_bytes += self.decode_dict[token]
             elif token in self.special_tokens_decode:
-                text_bytes += self.special_tokens_decode[token]
+                text_bytes += self.special_tokens_decode[token].encode("utf-8")
             else:
                 raise ValueError("Bad token inside of the sentence")
 
