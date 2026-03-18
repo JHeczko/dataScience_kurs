@@ -104,16 +104,27 @@ class GPT4Tokenizer(RegexTokenizer):
 
     @overrides
     def decode(self, tokens):
-        text_bytes = b""
+        output = []
+
+        byte_buffer = b""
+
         for token in tokens:
             if token in self.decode_dict:
-                text_bytes += self.decode_dict[token]
+                byte_buffer += self.decode_dict[token]
+
             elif token in self.special_tokens_decode:
-                text_bytes += self.special_tokens_decode[token].encode("utf-8")
+                if byte_buffer:
+                    byte_buffer = bytes(self.inverted_byte_shuffle[b] for b in byte_buffer)
+                    output.append(byte_buffer.decode("utf-8", errors="replace"))
+                    byte_buffer = b""
+
+                output.append(self.special_tokens_decode[token])
+
             else:
                 raise ValueError("Bad token")
 
-        text_bytes = bytes(self.inverted_byte_shuffle[byte] for byte in text_bytes)
+        if byte_buffer:
+            byte_buffer = bytes(self.inverted_byte_shuffle[b] for b in byte_buffer)
+            output.append(byte_buffer.decode("utf-8", errors="replace"))
 
-        text = text_bytes.decode("utf-8", errors="replace")
-        return text
+        return "".join(output)
