@@ -98,7 +98,7 @@ class GPT4Tokenizer(RegexTokenizer):
 
     @overrides
     def _encode_chunk(self, text_tokens):
-        text_tokens_permutated = bytes(self.byte_shuffle[token] for token in text_tokens)
+        text_tokens_permutated = [self.byte_shuffle[token] for token in text_tokens]
         tokens = super()._encode_chunk(text_tokens_permutated)
         return tokens
 
