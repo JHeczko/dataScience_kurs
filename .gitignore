@@ -984,5 +984,5 @@ http-client.private.env.json
 
 
 # =-=-=-=-=-=-=-=-=-= Custom User Section =-=-=-=-=-=-=-=-=-=
-
+.env
 # =-=-=-=-=-=-=-=-=-= END Custom User Section =-=-=-=-=-=-=-=-=-=
