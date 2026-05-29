@@ -1,13 +1,13 @@
 """
 Pharmindex scraper v3
-- Paginacja: klik "Następna" (DataTables AJAX)
-- Ulotka: klik zakładki "Ulotka przylekowa" → AJAX → klik każdej sekcji → zbierz
+- Pagination: click "Next" (DataTables AJAX)
+- Leaflet: click tab "Ulotka przylekowa" → AJAX → click each section → collect
 - JSON: ulotka jako tablica sekcji [{tytul, tresc}]
 
-Wymagania:
+Requirements:
     pip install selenium webdriver-manager beautifulsoup4
 
-Uruchomienie:
+Usage:
     python pharmindex_scraper.py
 """
 
@@ -27,20 +27,20 @@ from selenium.common.exceptions import (
 from webdriver_manager.chrome import ChromeDriverManager
 
 # ╔══════════════════════════════════════════════════════════════════╗
-# ║                        KONFIGURACJA                             ║
+# ║                        CONFIGURATION                            ║
 # ╚══════════════════════════════════════════════════════════════════╝
-DOCELOWA_LICZBA_LEKOW   = 500    # ile leków zebrać
-HEADLESS                = False  # True = bez okna Chrome
-OPOZNIENIE_AJAX         = 1.0   # sek czekania na załadowanie ulotki przez AJAX
-OPOZNIENIE_SEKCJA       = 0.2   # sek po rozwinięciu każdej sekcji
-OPOZNIENIE_STRONA       = 2.5   # sek po zmianie strony
-PLIK_WYJSCIOWY          = "pharmacy_dataset_rag.json"
+TARGET_DRUG_COUNT       = 3000    # how many drugs to collect
+HEADLESS                = True  # True = no Chrome window
+AJAX_DELAY              = 0.5   # sec to wait for leaflet to load via AJAX
+SECTION_DELAY           = 0.1   # sec after expanding each section
+PAGE_DELAY              = 2.5   # sec after page change
+OUTPUT_FILE             = "pharmacy_dataset_rag_v2.json"
 # ══════════════════════════════════════════════════════════════════
 
 
 # ─── DRIVER ──────────────────────────────────────────────────────
 
-def zbuduj_driver() -> webdriver.Chrome:
+def build_driver() -> webdriver.Chrome:
     opts = webdriver.ChromeOptions()
     if HEADLESS:
         opts.add_argument("--headless=new")
@@ -58,24 +58,24 @@ def zbuduj_driver() -> webdriver.Chrome:
 # ─── HELPERS ─────────────────────────────────────────────────────
 
 def js_click(driver, element):
-    """Klikaj przez JS – omija problemy z widocznością i nakładkami."""
+    """Click via JS – bypasses visibility and overlay issues."""
     driver.execute_script("arguments[0].click();", element)
 
 
-def akceptuj_rodo(driver):
+def accept_gdpr(driver):
     try:
         btn = WebDriverWait(driver, 7).until(
             EC.element_to_be_clickable((By.ID, "cookies-btn-primary"))
         )
         btn.click()
-        print("✅ RODO zaakceptowane.")
+        print("GDPR accepted.")
         time.sleep(0.6)
     except TimeoutException:
         pass
 
 
-def czekaj_na_tabele(driver, timeout=25):
-    """Czeka aż DataTables załaduje wiersze i spinner zniknie."""
+def wait_for_table(driver, timeout=25):
+    """Waits until DataTables loads rows and spinner disappears."""
     WebDriverWait(driver, timeout).until(
         EC.presence_of_element_located(
             (By.CSS_SELECTOR, "#packages table tbody tr")
@@ -87,195 +87,195 @@ def czekaj_na_tabele(driver, timeout=25):
         )
     except TimeoutException:
         pass
-    time.sleep(OPOZNIENIE_STRONA)
+    time.sleep(PAGE_DELAY)
 
 
-# ─── ULOTKA ──────────────────────────────────────────────────────
+# ─── LEAFLET ─────────────────────────────────────────────────────
 
-def pobierz_ulotke(driver, row_id: str) -> list[dict]:
+def fetch_leaflet(driver, row_id: str) -> list[dict]:
     """
-    Dla jednego wiersza (leku):
-      1. Klika zakładkę "Ulotka przylekowa"
-      2. Czeka na załadowanie AJAX
-      3. Klika każdą sekcję .box-7 .name żeby rozwinąć
-      4. Zbiera [{tytul, tresc}, ...] dla każdej sekcji
+    For a single row (drug):
+      1. Clicks the "Ulotka przylekowa" tab
+      2. Waits for AJAX to load
+      3. Clicks each .box-7 .name section to expand it
+      4. Collects [{tytul, tresc}, ...] for each section
 
-    Zwraca pustą listę jeśli coś pójdzie nie tak.
+    Returns an empty list if something goes wrong.
     """
-    sekcje_ulotki = []
+    leaflet_sections = []
 
     try:
-        # ── 1. Znajdź i kliknij zakładkę "Ulotka przylekowa" ──────────────
-        zakladka_sel = f"#pils-{row_id}"
+        # ── 1. Find and click the "Ulotka przylekowa" tab ─────────────────
+        tab_selector = f"#pils-{row_id}"
         try:
-            zakladka = WebDriverWait(driver, 8).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, zakladka_sel))
+            tab = WebDriverWait(driver, 8).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, tab_selector))
             )
         except TimeoutException:
-            print(f"      [!] Brak zakładki ulotki dla ID={row_id}")
+            print(f"      [!] No leaflet tab for ID={row_id}")
             return []
 
-        # Scroll do wiersza żeby był widoczny
+        # Scroll to row to make it visible
         driver.execute_script(
-            "arguments[0].scrollIntoView({block: 'center'});", zakladka
+            "arguments[0].scrollIntoView({block: 'center'});", tab
         )
         time.sleep(0.3)
-        js_click(driver, zakladka)
+        js_click(driver, tab)
 
-        # ── 2. Czekaj na załadowanie AJAX ─────────────────────────────────
-        # Po kliknięciu zakładki pojawia się .cont-boxes z zawartością
-        # Szukamy .boxes-7 wewnątrz tego konkretnego wiersza
-        # UWAGA: ID wierszy to liczby (np. "12313") – CSS #12313 jest nielegalny.
-        # Używamy atrybutowego selektora [id="12313"] zamiast #12313.
-        kontener_sel = (
+        # ── 2. Wait for AJAX to load ───────────────────────────────────────
+        # After clicking the tab, .cont-boxes appears with content
+        # We look for .boxes-7 inside this specific row
+        # NOTE: Row IDs are numbers (e.g. "12313") – CSS #12313 is illegal.
+        # Using attribute selector [id="12313"] instead of #12313.
+        container_selector = (
             f'#packages table tbody tr[id="{row_id}"] .cont-boxes .boxes-7, '
             f'#packages table tbody tr[id="{row_id}"] .cont-boxes .content-padding-1'
         )
         try:
-            WebDriverWait(driver, OPOZNIENIE_AJAX + 5).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, kontener_sel))
+            WebDriverWait(driver, AJAX_DELAY + 5).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, container_selector))
             )
         except TimeoutException:
-            # Może być lek bez ulotki – OK
+            # Drug may have no leaflet – OK
             pass
 
-        time.sleep(OPOZNIENIE_AJAX)
+        time.sleep(AJAX_DELAY)
 
-        # ── 3. Znajdź wiersz w DOM przez XPath (bezpieczne dla numerycznych ID) ──
+        # ── 3. Find row in DOM via XPath (safe for numeric IDs) ───────────
         try:
-            wiersz_el = driver.find_element(
+            row_el = driver.find_element(
                 By.XPATH, f'//table[@id="dt"]//tbody/tr[@id="{row_id}"]'
             )
         except NoSuchElementException:
-            # Fallback: atrybut CSS
+            # Fallback: CSS attribute
             try:
-                wiersz_el = driver.find_element(
+                row_el = driver.find_element(
                     By.CSS_SELECTOR, f'tr[id="{row_id}"]'
                 )
             except NoSuchElementException:
                 return []
 
-        # Sekcje do rozwinięcia: .box-7 .name (klikalny nagłówek)
-        naglowki = wiersz_el.find_elements(
+        # Section headers to expand: .box-7 .name (clickable header)
+        headers = row_el.find_elements(
             By.CSS_SELECTOR, ".box-7 .name"
         )
 
-        for naglowek in naglowki:
+        for header in headers:
             try:
                 driver.execute_script(
-                    "arguments[0].scrollIntoView({block: 'center'});", naglowek
+                    "arguments[0].scrollIntoView({block: 'center'});", header
                 )
                 time.sleep(0.15)
-                js_click(driver, naglowek)
-                time.sleep(OPOZNIENIE_SEKCJA)
+                js_click(driver, header)
+                time.sleep(SECTION_DELAY)
             except (StaleElementReferenceException, Exception):
-                pass  # sekcja już rozwinięta lub błąd – lecimy dalej
+                pass  # section already expanded or error – continue
 
-        # ── 4. Zbierz tekst po rozwinięciu wszystkich sekcji ──────────────
-        html_wiersza = wiersz_el.get_attribute("outerHTML")
-        soup = BeautifulSoup(html_wiersza, "html.parser")
+        # ── 4. Collect text after all sections are expanded ───────────────
+        row_html = row_el.get_attribute("outerHTML")
+        soup = BeautifulSoup(row_html, "html.parser")
 
         for box7 in soup.select(".box-7"):
-            naglowek_el = box7.select_one(".name span")
-            opis_el     = box7.select_one(".description")
+            header_el = box7.select_one(".name span")
+            desc_el   = box7.select_one(".description")
 
-            tytul = naglowek_el.get_text(separator=" ", strip=True) if naglowek_el else ""
-            tresc = opis_el.get_text(separator=" ", strip=True)      if opis_el     else ""
+            tytul = header_el.get_text(separator=" ", strip=True) if header_el else ""
+            tresc = desc_el.get_text(separator=" ", strip=True)   if desc_el   else ""
 
-            # Czyścimy nadmiarowe białe znaki w treści
+            # Clean up excessive whitespace in content
             tresc = " ".join(tresc.split())
 
             if tytul or tresc:
-                sekcje_ulotki.append({
+                leaflet_sections.append({
                     "tytul": tytul,
                     "tresc": tresc,
                 })
 
-        # Fallback: jeśli .boxes-7 puste, zbierz cały tekst kontenera
-        if not sekcje_ulotki:
-            kontener_bs = soup.select_one(".cont-boxes, .content-padding-1")
-            if kontener_bs:
-                tekst = " ".join(kontener_bs.get_text(separator=" ").split())
-                if tekst:
-                    sekcje_ulotki.append({"tytul": "Ulotka", "tresc": tekst})
+        # Fallback: if .boxes-7 is empty, collect all text from container
+        if not leaflet_sections:
+            container_bs = soup.select_one(".cont-boxes, .content-padding-1")
+            if container_bs:
+                text = " ".join(container_bs.get_text(separator=" ").split())
+                if text:
+                    leaflet_sections.append({"tytul": "Ulotka", "tresc": text})
 
     except Exception as e:
-        print(f"      [!] Błąd pobierania ulotki ID={row_id}: {e}")
+        print(f"      [!] Error fetching leaflet ID={row_id}: {e}")
 
-    return sekcje_ulotki
+    return leaflet_sections
 
 
-# ─── PARSOWANIE WIERSZA ───────────────────────────────────────────
+# ─── ROW PARSING ─────────────────────────────────────────────────
 
-def wyciagnij_dane_wiersza(wiersz_soup: BeautifulSoup) -> dict | None:
-    """Wyciąga podstawowe metadane leku z BeautifulSoup wiersza."""
+def extract_row_data(row_soup: BeautifulSoup) -> dict | None:
+    """Extracts basic drug metadata from a BeautifulSoup row."""
     try:
-        # ID wiersza (potrzebne do klikania zakładki)
-        row_id = wiersz_soup.get("id", "")
+        # Row ID (needed for tab clicking)
+        row_id = row_soup.get("id", "")
         if not row_id:
             return None
 
-        # Nazwa handlowa
-        nazwa_el = wiersz_soup.select_one(".txt-1 a")
-        nazwa = nazwa_el.get_text(strip=True) if nazwa_el else "Brak nazwy"
+        # Trade name
+        name_el = row_soup.select_one(".txt-1 a")
+        name = name_el.get_text(strip=True) if name_el else "Brak nazwy"
 
-        # Substancja czynna
-        substancja_el = wiersz_soup.select_one(".txt-2")
-        substancja = (
-            substancja_el.get_text(separator=", ", strip=True)
-            if substancja_el else "Brak substancji"
+        # Active substance
+        substance_el = row_soup.select_one(".txt-2")
+        substance = (
+            substance_el.get_text(separator=", ", strip=True)
+            if substance_el else "Brak substancji"
         )
 
-        # Postać / dawka / opakowanie
-        szczegoly_el = wiersz_soup.select_one(".box-5-3")
-        if szczegoly_el:
-            szczegoly = " | ".join(
+        # Form / dose / packaging
+        details_el = row_soup.select_one(".box-5-3")
+        if details_el:
+            details = " | ".join(
                 ln.strip()
-                for ln in szczegoly_el.get_text(separator="\n").splitlines()
+                for ln in details_el.get_text(separator="\n").splitlines()
                 if ln.strip()
             )
         else:
-            szczegoly = "Brak szczegółów"
+            details = "Brak szczegółów"
 
-        # Status recepty (Rp / OTC / Lz itd.)
-        recepta_els = wiersz_soup.select(".box-5-5 .xic-txt")
-        recepta_czesci = [el.get_text(strip=True) for el in recepta_els if el.get_text(strip=True)]
-        recepta = " | ".join(recepta_czesci)
+        # Prescription status (Rp / OTC / Lz etc.)
+        prescription_els = row_soup.select(".box-5-5 .xic-txt")
+        prescription_parts = [el.get_text(strip=True) for el in prescription_els if el.get_text(strip=True)]
+        prescription = " | ".join(prescription_parts)
 
         return {
-            "row_id":     row_id,
-            "nazwa":      nazwa,
-            "substancja": substancja,
-            "szczegoly":  szczegoly,
-            "recepta":    recepta,
+            "row_id":      row_id,
+            "nazwa":       name,
+            "substancja":  substance,
+            "szczegoly":   details,
+            "recepta":     prescription,
         }
     except Exception as e:
-        print(f"  [!] Błąd parsowania wiersza: {e}")
+        print(f"  [!] Error parsing row: {e}")
         return None
 
 
-def zbuduj_chunk_rag(dane: dict, sekcje: list[dict]) -> str:
-    """Buduje jeden długi string do embedowania w RAG."""
-    linie = [
-        f"NAZWA HANDLOWA: {dane['nazwa']}",
-        f"SUBSTANCJA CZYNNA: {dane['substancja']}",
-        f"SPECYFIKACJA (Postać, dawka, opakowanie): {dane['szczegoly']}",
-        f"STATUS: {dane['recepta']}",
+def build_rag_chunk(data: dict, sections: list[dict]) -> str:
+    """Builds a single long string for RAG embedding."""
+    lines = [
+        f"NAZWA HANDLOWA: {data['nazwa']}",
+        f"SUBSTANCJA CZYNNA: {data['substancja']}",
+        f"SPECYFIKACJA (Postać, dawka, opakowanie): {data['szczegoly']}",
+        f"STATUS: {data['recepta']}",
         "",
         "=== ULOTKA ===",
     ]
-    for s in sekcje:
+    for s in sections:
         if s["tytul"]:
-            linie.append(f"\n--- {s['tytul']} ---")
-        linie.append(s["tresc"])
+            lines.append(f"\n--- {s['tytul']} ---")
+        lines.append(s["tresc"])
 
-    return "\n".join(linie).strip()
+    return "\n".join(lines).strip()
 
 
-# ─── PAGINACJA ────────────────────────────────────────────────────
+# ─── PAGINATION ───────────────────────────────────────────────────
 
-def kliknij_nastepna(driver) -> bool:
-    """Klika 'Następna'. Zwraca False gdy ostatnia strona."""
+def click_next(driver) -> bool:
+    """Clicks 'Next'. Returns False on last page."""
     try:
         btn = driver.find_element(By.ID, "dt_next")
         if "disabled" in (btn.get_attribute("class") or ""):
@@ -285,134 +285,134 @@ def kliknij_nastepna(driver) -> bool:
         js_click(driver, btn)
         return True
     except (NoSuchElementException, ElementNotInteractableException) as e:
-        print(f"  [!] Nie można kliknąć 'Następna': {e}")
+        print(f"  [!] Cannot click 'Next': {e}")
         return False
 
 
-def czekaj_na_nowa_strone(driver, stare_pierwsze_tr):
-    """Czeka aż DataTables podmieni DOM po kliknięciu Następna."""
+def wait_for_new_page(driver, old_first_tr):
+    """Waits until DataTables swaps the DOM after clicking Next."""
     try:
         WebDriverWait(driver, 15).until(
-            EC.staleness_of(stare_pierwsze_tr)
+            EC.staleness_of(old_first_tr)
         )
     except (TimeoutException, StaleElementReferenceException):
         pass
-    czekaj_na_tabele(driver)
+    wait_for_table(driver)
 
 
 # ─── MAIN ─────────────────────────────────────────────────────────
 
 def main():
-    print(f"🚀 Cel: {DOCELOWA_LICZBA_LEKOW} leków")
-    print(f"   Tryb: {'headless' if HEADLESS else 'z oknem Chrome'}")
+    print(f"   Target: {TARGET_DRUG_COUNT} drugs")
+    print(f"   Mode: {'headless' if HEADLESS else 'Chrome window'}")
 
-    driver = zbuduj_driver()
-    baza: list[dict] = []
+    driver = build_driver()
+    database: list[dict] = []
 
     try:
         driver.get("https://pharmindex.pl/listalekow")
-        akceptuj_rodo(driver)
-        czekaj_na_tabele(driver)
+        accept_gdpr(driver)
+        wait_for_table(driver)
 
-        numer_strony = 1
+        page_number = 1
 
-        while len(baza) < DOCELOWA_LICZBA_LEKOW:
+        while len(database) < TARGET_DRUG_COUNT:
             print(f"\n{'═'*55}")
-            print(f"📄 Strona {numer_strony} | Zebrano: {len(baza)}/{DOCELOWA_LICZBA_LEKOW}")
+            print(f"Page {page_number} | Collected: {len(database)}/{TARGET_DRUG_COUNT}")
             print(f"{'═'*55}")
 
-            # ── Pobierz listę wierszy z aktualnego HTML ────────────────────
+            # ── Fetch row list from current HTML ──────────────────────────
             soup = BeautifulSoup(driver.page_source, "html.parser")
-            wiersze_soup = soup.select("#packages table tbody tr")
+            rows_soup = soup.select("#packages table tbody tr")
 
-            if not wiersze_soup:
-                print("⚠️  Brak wierszy na stronie.")
+            if not rows_soup:
+                print("No rows on page.")
                 break
 
-            # Ogranicz do ile jeszcze potrzebujemy
-            pozostalo = DOCELOWA_LICZBA_LEKOW - len(baza)
-            wiersze_soup = wiersze_soup[:pozostalo]
+            # Limit to how many we still need
+            remaining = TARGET_DRUG_COUNT - len(database)
+            rows_soup = rows_soup[:remaining]
 
-            # ── Dla każdego leku: dane podstawowe + ulotka ────────────────
-            for i, wiersz_bs in enumerate(wiersze_soup):
-                dane = wyciagnij_dane_wiersza(wiersz_bs)
-                if not dane:
+            # ── For each drug: basic data + leaflet ───────────────────────
+            for i, row_bs in enumerate(rows_soup):
+                data = extract_row_data(row_bs)
+                if not data:
                     continue
 
-                row_id = dane["row_id"]
-                print(f"  [{len(baza)+1:>4}] {dane['nazwa'][:55]:<55} ID={row_id}")
+                row_id = data["row_id"]
+                print(f"  [{len(database)+1:>4}] {data['nazwa'][:55]:<55} ID={row_id}")
 
-                # Pobierz ulotke (klik zakładki + klik sekcji)
-                sekcje = pobierz_ulotke(driver, row_id)
+                # Fetch leaflet (tab click + section clicks)
+                sections = fetch_leaflet(driver, row_id)
 
-                if sekcje:
-                    print(f"         ↳ {len(sekcje)} sekcji ulotki")
+                if sections:
+                    print(f"         ↳ {len(sections)} leaflet sections")
                 else:
-                    print(f"         ↳ brak ulotki")
-                    sekcje = []
+                    print(f"         ↳ no leaflet")
+                    sections = []
 
-                chunk = zbuduj_chunk_rag(dane, sekcje)
+                chunk = build_rag_chunk(data, sections)
 
-                baza.append({
-                    "id":                len(baza) + 1,
-                    "nazwa_handlowa":    dane["nazwa"],
-                    "substancja_czynna": dane["substancja"],
-                    "specyfikacja":      dane["szczegoly"],
-                    "status_recepty":    dane["recepta"],
-                    "ulotka_sekcje":     sekcje,          # ← tablica sekcji
-                    "rag_input_chunk":   chunk,            # ← pełny tekst do RAG
+                database.append({
+                    "id":                len(database) + 1,
+                    "nazwa_handlowa":    data["nazwa"],
+                    "substancja_czynna": data["substancja"],
+                    "specyfikacja":      data["szczegoly"],
+                    "status_recepty":    data["recepta"],
+                    "ulotka_sekcje":     sections,          # ← tablica sekcji
+                    "rag_input_chunk":   chunk,              # ← pełny tekst do RAG
                 })
 
-                if len(baza) >= DOCELOWA_LICZBA_LEKOW:
+                if len(database) >= TARGET_DRUG_COUNT:
                     break
 
-            # ── Zapis częściowy co stronę (bezpieczeństwo) ────────────────
-            with open(PLIK_WYJSCIOWY, "w", encoding="utf-8") as f:
-                json.dump(baza, f, indent=2, ensure_ascii=False)
-            print(f"\n  💾 Zapisano częściowo: {len(baza)} leków → {PLIK_WYJSCIOWY}")
+            # ── Partial save per page (safety) ────────────────────────────
+            with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+                json.dump(database, f, indent=2, ensure_ascii=False)
+            print(f"\n Partial save: {len(database)} drugs -> {OUTPUT_FILE}")
 
-            if len(baza) >= DOCELOWA_LICZBA_LEKOW:
+            if len(database) >= TARGET_DRUG_COUNT:
                 break
 
-            # ── Przejdź na następną stronę ────────────────────────────────
+            # ── Go to next page ───────────────────────────────────────────
             try:
-                stare_tr = driver.find_elements(
+                old_tr = driver.find_elements(
                     By.CSS_SELECTOR, "#packages table tbody tr"
                 )[0]
             except IndexError:
-                stare_tr = None
+                old_tr = None
 
-            if not kliknij_nastepna(driver):
-                print("ℹ️  Ostatnia strona – kończymy.")
+            if not click_next(driver):
+                print("Last page – stopping.")
                 break
 
-            if stare_tr:
-                czekaj_na_nowa_strone(driver, stare_tr)
+            if old_tr:
+                wait_for_new_page(driver, old_tr)
             else:
-                czekaj_na_tabele(driver)
+                wait_for_table(driver)
 
-            numer_strony += 1
+            page_number += 1
 
     except Exception as e:
-        print(f"\n🔥 BŁĄD KRYTYCZNY: {e}")
+        print(f"\nCRITICAL ERROR: {e}")
         traceback.print_exc()
 
     finally:
         driver.quit()
 
-    # ── Końcowy zapis ──────────────────────────────────────────────────────
-    with open(PLIK_WYJSCIOWY, "w", encoding="utf-8") as f:
-        json.dump(baza, f, indent=2, ensure_ascii=False)
+    # ── Final save ────────────────────────────────────────────────────────
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+        json.dump(database, f, indent=2, ensure_ascii=False)
 
     print(f"\n{'═'*55}")
-    print(f"🎉 GOTOWE! Zapisano {len(baza)} leków → {PLIK_WYJSCIOWY}")
+    print(f"DONE! Saved {len(database)} drugs → {OUTPUT_FILE}")
 
-    if baza:
-        print(f"\nPrzykład struktury pierwszego leku:")
-        print(f"  nazwa_handlowa : {baza[0]['nazwa_handlowa']}")
-        print(f"  substancja     : {baza[0]['substancja_czynna']}")
-        print(f"  ulotka_sekcje  : {len(baza[0]['ulotka_sekcje'])} sekcji")
-        for s in baza[0]["ulotka_sekcje"]:
+    if database:
+        print(f"\nExample structure of first drug:")
+        print(f"  nazwa_handlowa : {database[0]['nazwa_handlowa']}")
+        print(f"  substancja     : {database[0]['substancja_czynna']}")
+        print(f"  ulotka_sekcje  : {len(database[0]['ulotka_sekcje'])} sections")
+        for s in database[0]["ulotka_sekcje"]:
             print(f"    • {s['tytul'][:70]}")
 
 

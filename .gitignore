@@ -986,4 +986,5 @@ http-client.private.env.json
 # =-=-=-=-=-=-=-=-=-= Custom User Section =-=-=-=-=-=-=-=-=-=
 .env
 chroma_db/
+pharmacy_dataset_rag*
 # =-=-=-=-=-=-=-=-=-= END Custom User Section =-=-=-=-=-=-=-=-=-=

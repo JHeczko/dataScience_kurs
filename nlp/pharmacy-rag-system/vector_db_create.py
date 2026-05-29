@@ -92,7 +92,7 @@ def main():
     init_database()
 
     print("="*10, "REMOVEING DUPLICATES", "="*10)
-    data = json.load(open("./pharmacy_dataset_rag.json"))
+    data = json.load(open("./pharmacy_dataset_rag_v2.json"))
 
     meds_json = [Medicament.from_dict(rec) for rec in data]
     meds_json_nodup = delete_duplicates(meds_json)

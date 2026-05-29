@@ -19,7 +19,11 @@ class Medicament:
 
     @classmethod
     def from_dict(cls, data: dict):
-        # Konwersja zagnieżdżonych słowników na obiekty InfoSecion
+        '''
+        Takes single med of data set and converts it to Medicament class
+        :param data: med json record
+        :return: Medicament object with data from json
+        '''
         sekcje = [InfoSection(**s) for s in data.get('ulotka_sekcje', [])]
 
         return cls(
